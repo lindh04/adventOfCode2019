@@ -10,7 +10,8 @@ class IntcodeComputer:
         else:
             self.intcode = intcode
 
-    def __call__(self, noun: int = None, verb: int = None):
+    def __call__(self, noun: int = None, verb: int = None, inputList=None):
+        self.inputList = inputList
         self.i = 0
         data = list(self.intcode)
 
@@ -19,11 +20,20 @@ class IntcodeComputer:
         if verb:
             data[2] = verb
 
+        self.input = self.getInput()
+
         while True:
             done, data = self.runOpCode(data[self.i], data)
             if done:
                 return data[0]
-            self.i += 1
+
+    def getInput(self):
+        if self.inputList:
+            for x in self.inputList:
+                yield int(x)
+        else:
+            while True:
+                yield int(input("Opcode 3 (Requesting Input): "))
 
     def runOpCode(self, opcode: int, dataList: list) -> Tuple[bool, list]:
         if opcode not in [1, 2, 3, 4, 5, 6, 7, 8]:
@@ -54,136 +64,110 @@ class IntcodeComputer:
                     return x, y
         raise Exception("Unable to find correct values")
 
+    def calcModes(self, modes, data, abc=(False, True, True)):
+        i = self.i
+        if not modes:
+            a = data[data[i+3]] if abc[0] else None
+            b = data[data[i+2]] if abc[1] else None
+            c = data[data[i+1]] if abc[2] else None
+        else:
+            a, b, c = modes
+
+            a = (data[i+3] if a != 0 else data[data[i+3]]) if abc[0] else None
+            b = (data[i+2] if b != 0 else data[data[i+2]]) if abc[1] else None
+            c = (data[i+1] if c != 0 else data[data[i+1]]) if abc[2] else None
+
+        return a, b, c
+
     def code1(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            data[data[i+3]] = data[data[i+1]] + data[data[i+2]]
-        else:
-            _, b, c = modes
-            b = data[i+2] if b != 0 else data[data[i+2]]
-            c = data[i+1] if c != 0 else data[data[i+1]]
-            data[data[i+3]] = b + c
-        self.i += 3
+        _, b, c = self.calcModes(modes, data)
+        data[data[i+3]] = b + c
+        self.i += 4
         return False, data
 
     def code2(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            data[data[i+3]] = data[data[i+1]] * data[data[i+2]]
-        else:
-            _, b, c = modes
-            b = data[i+2] if b != 0 else data[data[i+2]]
-            c = data[i+1] if c != 0 else data[data[i+1]]
-            data[data[i+3]] = b * c
-        self.i += 3
+
+        _, b, c = self.calcModes(modes, data)
+        data[data[i+3]] = b * c
+
+        self.i += 4
         return False, data
 
     def code3(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
         if not modes:
-            data[data[i+1]] = int(input("Opcode 3 (Requesting Input): "))
+            data[data[i+1]] = int(next(self.input))
         else:
             raise Exception("Modes given to opcode 3")
-        self.i += 1
+        self.i += 2
         return False, data
 
     def code4(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            print("Opcode 4 (Sending Output): ", data[data[i+1]])
-        else:
-            _, _, c = modes
-            if c == 0:
-                print("Opcode 4 (Sending Output): ", data[data[i+1]])
-            else:
-                print("Opcode 4 (Sending Output): ", data[i+1])
-        self.i += 1
+
+        _, _, c = self.calcModes(modes, data, (False, False, True))
+        print("Opcode 4 (Sending Output): ", c)
+
+        self.i += 2
         return False, data
 
     def code5(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            if data[data[i+1]] != 0:
-                self.i = data[data[i+2]]
-            else:
-                self.i += 2
-        else:
-            _, b, c = modes
-            b = data[i+2] if b != 0 else data[data[i+2]]
-            c = data[i+1] if c != 0 else data[data[i+1]]
+        _, b, c = self.calcModes(modes, data)
 
-            if c != 0:
-                self.i = b
-            else:
-                self.i += 2
+        if c != 0:
+            self.i = b
+        else:
+            self.i += 3
 
         return False, data
 
     def code6(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            if data[data[i+1]] == 0:
-                self.i = data[data[i+2]]
-            else:
-                self.i += 2
-        else:
-            _, b, c = modes
-            b = data[i+2] if b != 0 else data[data[i+2]]
-            c = data[i+1] if c != 0 else data[data[i+1]]
 
-            if c == 0:
-                self.i = b
-            else:
-                self.i += 2
+        _, b, c = self.calcModes(modes, data)
+
+        if c == 0:
+            self.i = b
+        else:
+            self.i += 3
 
         return False, data
 
     def code7(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            if data[data[i+1]] < data[data[i+2]]:
-                data[data[i+3]] = 1
-            else:
-                data[data[i+3]] = 0
+
+        _, b, c = self.calcModes(modes, data)
+
+        if c < b:
+            data[data[i+3]] = 1
         else:
-            _, b, c = modes
-            b = data[i+2] if b != 0 else data[data[i+2]]
-            c = data[i+1] if c != 0 else data[data[i+1]]
+            data[data[i+3]] = 0
 
-            if c < b:
-                data[data[i+3]] = 1
-            else:
-                data[data[i+3]] = 0
-
-        self.i += 3
+        self.i += 4
         return False, data
 
     def code8(self, dataList, modes) -> Tuple[bool, list]:
         i = self.i
         data = list(dataList)
-        if not modes:
-            if data[data[i+1]] == data[data[i+2]]:
-                data[data[i+3]] = 1
-            else:
-                data[data[i+3]] = 0
+
+        _, b, c = self.calcModes(modes, data)
+
+        if c == b:
+            data[data[i+3]] = 1
         else:
-            _, b, c = modes
-            b = data[i+2] if b != 0 else data[data[i+2]]
-            c = data[i+1] if c != 0 else data[data[i+1]]
+            data[data[i+3]] = 0
 
-            if c == b:
-                data[data[i+3]] = 1
-            else:
-                data[data[i+3]] = 0
-
-        self.i += 3
+        self.i += 4
         return False, data
 
     def code99(self, dataList, modes) -> Tuple[bool, list]:

@@ -40,5 +40,9 @@ if __name__ == "__main__":
     with open("in.txt") as f:
         inData = f.read()
 
+    print("\n\nPart1:")
     part1(inData)
+
+    print("\n\nPart1:")
     part2(inData)
+    print("\n\n")
